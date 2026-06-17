@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>制動力計算・現場記録簿様式</title>
+<style>
+:root{--b:#111;--g:#f3f3f3;--ok:#0a7a22;--ng:#b00020}
+*{box-sizing:border-box} body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:#f5f6f8;color:#111}.wrap{max-width:980px;margin:auto;padding:14px}.card{background:white;border:1px solid #ddd;border-radius:14px;padding:14px;margin:12px 0;box-shadow:0 2px 10px #0001}h1{font-size:22px;margin:0 0 8px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}label{font-size:13px;font-weight:700}input,select{width:100%;font-size:20px;padding:12px;border:1px solid #aaa;border-radius:10px;margin-top:4px}button{font-size:18px;font-weight:800;padding:13px 18px;border:0;border-radius:10px;background:#111;color:white;cursor:pointer}.btns{display:flex;gap:8px;flex-wrap:wrap}.sub{font-size:12px;color:#555}.ok{color:var(--ok);font-weight:900}.ng{color:var(--ng);font-weight:900}.hold{color:#777;font-weight:900}
+.record{background:white;color:#111;padding:14px;border:1px solid #bbb;overflow:auto}.sheet-title{font-weight:900;font-size:18px;margin-bottom:8px}.brake-table{border-collapse:collapse;width:100%;table-layout:fixed;font-family:"Yu Gothic",Meiryo,sans-serif;font-size:14px}.brake-table th,.brake-table td{border:2px solid var(--b);padding:4px 5px;text-align:center;vertical-align:middle;height:34px}.brake-table th{background:#f7f7f7;font-weight:900}.vhead{writing-mode:vertical-rl;text-orientation:upright;font-weight:900;letter-spacing:.08em;width:34px}.section{font-weight:900;background:#fafafa;width:72px}.labelcell{text-align:left!important;background:#fafafa;font-weight:800}.num{font-size:18px;font-weight:900}.small{font-size:11px}.judge{font-size:18px;font-weight:900}.memo{height:54px;text-align:left!important}.totalJudge{margin-top:10px;border:3px solid #111;padding:10px;text-align:center;font-size:22px;font-weight:900}.printOnlyNote{display:none}
+@media(max-width:700px){.grid,.grid4{grid-template-columns:1fr 1fr}.brake-table{font-size:12px}.brake-table th,.brake-table td{padding:3px}.num{font-size:15px}}
+@media print{body{background:white}.wrap{max-width:none;padding:0}.inputArea,.btns,.noPrint{display:none!important}.record{border:0;padding:0;overflow:visible}.card{box-shadow:none;border:0;margin:0;padding:0}.brake-table{font-size:12px}.brake-table th,.brake-table td{height:27px;padding:2px 4px}.num{font-size:14px}.totalJudge{font-size:18px;margin-top:6px;padding:5px}@page{size:A4 portrait;margin:10mm}.printOnlyNote{display:block;font-size:10px;margin-top:5px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card inputArea">
+    <h1>制動力計算・現場記録簿様式</h1>
+    <div class="sub">4輪車用。入力はテスター値そのまま。結果は現場の記録簿欄に近い形で印刷。</div>
+    <div class="grid" style="margin-top:10px">
+      <div><label>制動力単位</label><select id="unit"><option value="kgf">kgf</option><option value="dan">daN</option><option value="n">N</option></select></div>
+      <div><label>検査条件</label><select id="condition"><option value="dry">通常</option><option value="wet">雨天等 W判定</option></select></div>
+      <div><label>前軸重 kg</label><input id="frontAxle" type="number" inputmode="decimal" placeholder="例 850"></div>
+      <div><label>後軸重 kg</label><input id="rearAxle" type="number" inputmode="decimal" placeholder="例 650"></div>
+    </div>
+    <div class="grid4" style="margin-top:10px">
+      <div><label>前右</label><input id="fr" type="number" inputmode="decimal"></div>
+      <div><label>前左</label><input id="fl" type="number" inputmode="decimal"></div>
+      <div><label>後右</label><input id="rr" type="number" inputmode="decimal"></div>
+      <div><label>後左</label><input id="rl" type="number" inputmode="decimal"></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div><label>駐車ブレーキ制動力総和</label><input id="park" type="number" inputmode="decimal" placeholder="未入力なら保留"></div>
+      <div><label>車両情報・備考</label><input id="memoIn" type="text" placeholder="任意"></div>
+    </div>
+    <div class="btns" style="margin-top:12px"><button onclick="calc()">計算</button><button onclick="window.print()">印刷</button><button onclick="clearAll()" style="background:#666">クリア</button></div>
+  </div>
+
+  <div class="card record">
+    <div class="sheet-title">検査機器等による検査　制動力</div>
+    <table class="brake-table">
+      <colgroup>
+        <col style="width:38px"><col style="width:80px"><col style="width:90px"><col style="width:90px"><col style="width:105px"><col style="width:105px"><col style="width:105px"><col style="width:76px">
+      </colgroup>
+      <tr>
+        <th rowspan="10" class="vhead">制動力</th>
+        <th>区分</th><th>右</th><th>左</th><th>軸重<br><span class="small">kg</span></th><th>左右差</th><th>制動率<br><span class="small" id="rateHead">%</span></th><th>判定</th>
+      </tr>
+      <tr>
+        <td rowspan="2" class="section">前輪</td><td class="num" id="o_fr">—</td><td class="num" id="o_fl">—</td><td rowspan="2" class="num" id="o_fax">—</td><td rowspan="2" class="num" id="o_fdiff">—</td><td rowspan="2" class="num small">記載なし</td><td rowspan="2" class="judge" id="o_fjudge">—</td>
+      </tr>
+      <tr><td class="small" id="u_fr">kgf</td><td class="small" id="u_fl">kgf</td></tr>
+      <tr>
+        <td rowspan="2" class="section">後輪</td><td class="num" id="o_rr">—</td><td class="num" id="o_rl">—</td><td rowspan="2" class="num" id="o_rax">—</td><td rowspan="2" class="num" id="o_rdiff">—</td><td rowspan="2" class="num" id="o_rrate">—</td><td rowspan="2" class="judge" id="o_rjudge">—</td>
+      </tr>
+      <tr><td class="small" id="u_rr">kgf</td><td class="small" id="u_rl">kgf</td></tr>
+      <tr>
+        <td class="section">計</td><td colspan="2" class="labelcell">制動力総和</td><td class="labelcell">車両重量</td><td class="labelcell">基準</td><td class="labelcell">主制動率</td><td class="labelcell">判定</td>
+      </tr>
+      <tr>
+        <td></td><td colspan="2" class="num" id="o_totalForce">—</td><td class="num" id="o_weight">—</td><td class="num small" id="o_mainBase">50%以上</td><td class="num" id="o_mainRate">—</td><td class="judge" id="o_mainJudge">—</td>
+      </tr>
+      <tr>
+        <td class="section">手動</td><td colspan="2" class="labelcell">駐車制動力総和</td><td class="labelcell">車両重量</td><td class="labelcell">基準</td><td class="labelcell">駐車制動率</td><td class="labelcell">判定</td>
+      </tr>
+      <tr>
+        <td></td><td colspan="2" class="num" id="o_park">—</td><td class="num" id="o_pweight">—</td><td class="num small" id="o_parkBase">20%以上</td><td class="num" id="o_parkRate">—</td><td class="judge" id="o_parkJudge">—</td>
+      </tr>
+      <tr>
+        <td class="section">備考</td><td colspan="6" class="memo" id="o_memo"></td>
+      </tr>
+    </table>
+    <div class="totalJudge" id="o_totalJudge">総合判定　—</div>
+    <div class="printOnlyNote">※前軸重は検査時重量補正として +55kg を含めて計算。</div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function val(id){const n=parseFloat($(id).value);return isNaN(n)?0:n}
+function convToN(x){const u=$('unit').value; if(u==='kgf')return x*9.80665; if(u==='dan')return x*10; return x}
+function dispForce(x){const u=$('unit').value; if(!isFinite(x))return '—'; return trim(x)+' '+(u==='dan'?'daN':u==='n'?'N':'kgf')}
+function trim(n){return (Math.floor(n*100)/100).toFixed(2).replace(/\.00$/,'').replace(/0$/,'')}
+function pct(forceInput, weightKg){ if(!weightKg)return 0; return convToN(forceInput)/(weightKg*9.80665)*100 }
+function nkg(forceInput, weightKg){ if(!weightKg)return 0; return convToN(forceInput)/weightKg }
+function setJudge(id, ok, hold=false){const e=$(id); if(hold){e.textContent='保留'; e.className='judge hold'} else {e.textContent=ok?'○':'×'; e.className='judge '+(ok?'ok':'ng')}}
+function calc(){
+ const fa=val('frontAxle')+55, ra=val('rearAxle'), weight=fa+ra;
+ const fr=val('fr'), fl=val('fl'), rr=val('rr'), rl=val('rl'), park=val('park');
+ const unit=$('unit').value, isKgf=unit==='kgf';
+ ['fr','fl','rr','rl'].forEach(k=>$('u_'+k).textContent=(unit==='dan'?'daN':unit==='n'?'N':'kgf'));
+ $('rateHead').textContent=isKgf?'%':'N/kg';
+ $('o_fr').textContent=fr?trim(fr):'—'; $('o_fl').textContent=fl?trim(fl):'—'; $('o_rr').textContent=rr?trim(rr):'—'; $('o_rl').textContent=rl?trim(rl):'—';
+ $('o_fax').textContent=fa?trim(fa)+' kg':'—'; $('o_rax').textContent=ra?trim(ra)+' kg':'—'; $('o_weight').textContent=weight?trim(weight)+' kg':'—'; $('o_pweight').textContent=weight?trim(weight)+' kg':'—';
+ const fdiff=Math.abs(fr-fl), rdiff=Math.abs(rr-rl);
+ const fdiffRate=isKgf?(fa?fdiff/fa*100:0):(fa?convToN(fdiff)/fa:0);
+ const rdiffRate=isKgf?(ra?rdiff/ra*100:0):(ra?convToN(rdiff)/ra:0);
+ $('o_fdiff').textContent=(fr||fl)?(isKgf?trim(fdiffRate)+'%':trim(fdiffRate)+' N/kg'):'—';
+ $('o_rdiff').textContent=(rr||rl)?(isKgf?trim(rdiffRate)+'%':trim(rdiffRate)+' N/kg'):'—';
+ const rearRate=isKgf?pct(rr+rl,ra):nkg(rr+rl,ra);
+ $('o_rrate').textContent=(rr||rl)?trim(rearRate)+(isKgf?'%':' N/kg'):'—';
+ const total=fr+fl+rr+rl;
+ $('o_totalForce').textContent=total?dispForce(total):'—';
+ const wet=$('condition').value==='wet';
+ const mainBaseN=wet?3.92:4.90, mainBasePct=wet?40:50;
+ $('o_mainBase').textContent=isKgf?(mainBasePct+'%以上'):(mainBaseN.toFixed(2)+' N/kg以上');
+ const mainRate=isKgf?pct(total,weight):nkg(total,weight);
+ $('o_mainRate').textContent=total?trim(mainRate)+(isKgf?'%':' N/kg'):'—';
+ $('o_park').textContent=park?dispForce(park):'—';
+ $('o_parkBase').textContent=isKgf?'20%以上':'1.96 N/kg以上';
+ const parkRate=isKgf?pct(park,weight):nkg(park,weight);
+ $('o_parkRate').textContent=park?trim(parkRate)+(isKgf?'%':' N/kg'):'—';
+ $('o_memo').textContent=$('memoIn').value;
+ const fOk=fa && (isKgf?fdiffRate<=8:fdiffRate<=0.78);
+ const rOk=ra && (isKgf?rdiffRate<=8:rdiffRate<=0.78) && (isKgf?rearRate>=10:rearRate>=0.98);
+ const mOk=weight && (isKgf?mainRate>=mainBasePct:mainRate>=mainBaseN);
+ const pHold=!park;
+ const pOk=weight && (isKgf?parkRate>=20:parkRate>=1.96);
+ setJudge('o_fjudge',fOk); setJudge('o_rjudge',rOk); setJudge('o_mainJudge',mOk); setJudge('o_parkJudge',pOk,pHold);
+ const all=fOk&&rOk&&mOk&&(pHold||pOk);
+ $('o_totalJudge').textContent='総合判定　'+(all?'適合':'不適合'); $('o_totalJudge').className='totalJudge '+(all?'ok':'ng');
+}
+function clearAll(){document.querySelectorAll('input').forEach(i=>i.value='');calc()}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',calc));calc();
+</script>
+</body>
+</html>
