@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>実務用 制動力計算</title>
+<style>
+:root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--ok:#22c55e;--ng:#ef4444;--warn:#f59e0b;--line:#334155;--accent:#38bdf8;}
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:linear-gradient(180deg,#0f172a,#020617);color:var(--text)}
+header{position:sticky;top:0;background:rgba(15,23,42,.92);backdrop-filter:blur(10px);z-index:3;border-bottom:1px solid var(--line);padding:14px 16px} h1{font-size:18px;margin:0}.sub{font-size:12px;color:var(--muted);margin-top:4px}
+main{max-width:980px;margin:0 auto;padding:14px 12px 90px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card{background:rgba(17,24,39,.94);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.card h2{font-size:15px;margin:0 0 10px;border-left:4px solid var(--accent);padding-left:8px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.field{margin:8px 0}label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}input,select{width:100%;font-size:18px;color:var(--text);background:#020617;border:1px solid #475569;border-radius:10px;padding:10px 9px;outline:none}input:focus,select:focus{border-color:var(--accent)}.small input{font-size:15px}.unit{font-size:11px;color:var(--muted);margin-top:3px}.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button{border:0;border-radius:999px;padding:11px 14px;font-weight:700;color:#001018;background:var(--accent);cursor:pointer}button.secondary{background:#334155;color:var(--text)}button.warn{background:var(--warn)}button.danger{background:var(--ng);color:white}.pill{display:inline-block;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800}.ok{background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.4)}.ng{background:rgba(239,68,68,.15);color:#fecaca;border:1px solid rgba(239,68,68,.4)}.warnp{background:rgba(245,158,11,.15);color:#fde68a;border:1px solid rgba(245,158,11,.4)}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #263244;padding:8px 6px;text-align:right}th:first-child,td:first-child{text-align:left}tfoot td{font-weight:800}.result{font-size:14px;line-height:1.65}.big{font-size:22px;font-weight:900}.note{font-size:12px;color:var(--muted);line-height:1.6}.lockbox{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.check{display:flex;align-items:center;gap:8px;background:#020617;border:1px solid #475569;border-radius:10px;padding:9px;font-size:13px}.check input{width:auto}.footerbar{position:fixed;left:0;right:0;bottom:0;background:rgba(2,6,23,.94);border-top:1px solid var(--line);padding:10px 12px}.footerbar>div{max-width:980px;margin:0 auto;display:flex;gap:8px}.footerbar button{flex:1}.hidden{display:none}.mono{font-variant-numeric:tabular-nums}.printOnly{display:none}
+@media(max-width:760px){.grid,.row,.row3{grid-template-columns:1fr}.lockbox{grid-template-columns:1fr}.card{padding:12px}main{padding-bottom:110px}}
+@media print{
+  @page{size:A4 portrait;margin:10mm}
+  body{background:white!important;color:#111!important;font-size:12px}
+  header,.footerbar,.btns,.noPrint{display:none!important}
+  main{max-width:none;margin:0;padding:0}
+  main > section{display:none!important}
+  main > section.print-keep,
+  main > section.print-result-grid{display:block!important}
+  .print-result-grid{display:block!important}
+  .print-result-grid .card.print-keep{display:block!important}
+  .card{box-shadow:none!important;border:1px solid #999!important;background:white!important;color:#111!important;break-inside:avoid;margin-bottom:8px;border-radius:8px;padding:10px}
+  .card h2{font-size:16px;margin-bottom:8px;color:#111;border-left:4px solid #111}
+  .grid{display:block!important}
+  .printOnly{display:block}
+  .note{color:#333!important}
+  input,select{border:0!important;padding:0!important;color:#111!important;background:white!important;font-size:14px}
+  table{font-size:12px}
+  th,td{border-bottom:1px solid #aaa;color:#111!important;padding:6px 4px}
+  .pill{border:1px solid #111!important;color:#111!important;background:white!important}
+  .ok,.ng,.warnp{color:#111!important;background:white!important;border:1px solid #111!important}
+}
+</style>
+</head>
+<body>
+<header><h1>実務用 制動力計算</h1><div class="sub">軸重補正・前後左右差・丸め判定・雨天W・駐車ブレーキ総和・結果印刷対応</div></header>
+<main>
+
+<section class="card print-keep" style="margin-bottom:12px">
+<h2>検査票情報</h2>
+<div class="row">
+<div class="field"><label>検査日</label><input id="inspDate"></div>
+<div class="field"><label>車名</label><input id="carName"></div>
+</div>
+<div class="row">
+<div class="field"><label>登録番号</label><input id="regNo"></div>
+<div class="field"><label>型式</label><input id="model"></div>
+</div>
+<div class="row">
+<div class="field"><label>車台番号</label><input id="vin"></div>
+<div class="field"><label>走行距離(km)</label><input id="odo"></div>
+</div>
+<div class="row">
+<div class="field"><label>担当者</label><input id="tech"></div>
+<div class="field"><label>確認者</label><input id="checker"></div>
+</div>
+</section>
+
+  <section class="grid">
+    <div class="card">
+      <h2>1. 車両・単位</h2>
+      <div class="row">
+        <div class="field"><label>入力単位</label><select id="unit"><option value="kgf">kgf / kg 表示</option><option value="daN">daN 表示</option><option value="N">N 表示</option></select><div class="unit">ブレーキテスタの表示単位に合わせる</div></div>
+        <div class="field"><label>車種区分</label><select id="mode"><option value="general">一般車両</option><option value="trailer">トレーラ</option><option value="lowSpeed">GVW/車重 ≤1.25 かつ最高速度80km/h未満</option></select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>前前軸重 車検証値 kg</label><input id="frontAxle" inputmode="decimal" placeholder="例 730"></div>
+        <div class="field"><label>後後軸重 車検証値 kg</label><input id="rearAxle" inputmode="decimal" placeholder="例 600"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>前軸 運転者加算</label><select id="driverAdd"><option value="55">+55kg する</option><option value="0">加算しない</option></select></div>
+        <div class="field"><label>雨天・ローラ濡れ</label><select id="wet"><option value="0">通常 4.90N/kg</option><option value="1">W判定 3.92N/kg</option></select></div>
+      </div>
+      <div class="note">検査時車両状態は基本「空車状態 + 運転者55kgを前軸へ」。kgfは%基準、daN・NはN/kg基準で判定します。</div>
+    </div>
+
+    <div class="card">
+      <h2>2. ロック・特殊扱い</h2>
+      <div class="lockbox noPrint">
+        <label class="check"><input type="checkbox" id="frontLock"> 前軸 全車輪ロック</label>
+        <label class="check"><input type="checkbox" id="rearLock"> 後軸 全車輪ロック</label>
+        <label class="check"><input type="checkbox" id="parkLock"> 駐車 全車輪ロック</label>
+        <label class="check"><input type="checkbox" id="propLock"> 推進軸ロック</label>
+      </div>
+      <div class="field"><label>メモ・備考欄</label><input id="memo" placeholder="例：全車輪ロック、W、再測定後OK など"></div>
+      <div class="note">ロック扱いは「測定困難な場合に適合とみなす」実務用チェック。測定値はロック直前値を入れておくと記録っぽく残せます。</div>
+    </div>
+  </section>
+
+  <section class="grid" style="margin-top:12px">
+    <div class="card">
+      <h2>3. 主制動力 測定値</h2>
+      <div class="row">
+        <div class="field"><label>前右</label><input id="fr" inputmode="decimal" placeholder="例 2840"><div class="unit ulabel">N</div></div>
+        <div class="field"><label>前左</label><input id="fl" inputmode="decimal" placeholder="例 2730"><div class="unit ulabel">N</div></div>
+        <div class="field"><label>後右</label><input id="rr" inputmode="decimal" placeholder="例 1980"><div class="unit ulabel">N</div></div>
+        <div class="field"><label>後左</label><input id="rl" inputmode="decimal" placeholder="例 1960"><div class="unit ulabel">N</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>4. 駐車ブレーキ 測定値</h2>
+      <div class="field"><label>駐車ブレーキ制動力総和</label><input id="park" inputmode="decimal" placeholder="例 2200"><div class="unit ulabel">N</div></div>
+      <div class="note">駐車ブレーキは左右差判定なし。テスタの駐車ブレーキ総和をそのまま入力。</div>
+      <div class="btns noPrint"><button class="secondary" onclick="sample()">サンプル入力</button><button class="secondary" onclick="clearAll()">クリア</button></div>
+    </div>
+  </section>
+
+  <section class="grid print-keep print-result-grid" style="margin-top:12px">
+    <div class="card print-keep">
+      <h2>5. 判定結果</h2>
+      <div id="summary" class="result">数値を入力すると自動計算します。</div>
+    </div>
+    <div class="card print-keep">
+      <h2>6. 計算結果</h2>
+      <div id="tablewrap"></div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:12px">
+    <h2>基準値</h2>
+    <table><tbody>
+      <tr><td>主制動力 一般</td><td>検査時重量の 4.90 N/kg 以上</td><td>50%以上</td></tr>
+      <tr><td>雨天W</td><td>検査時重量の 3.92 N/kg 以上</td><td>40%以上</td></tr>
+      <tr><td>後車輪制動力</td><td>後軸重の 0.98 N/kg 以上</td><td>10%以上</td></tr>
+      <tr><td>左右差</td><td>各軸重の 0.78 N/kg 以下</td><td>8%以下</td></tr>
+      <tr><td>駐車ブレーキ</td><td>検査時重量の 1.96 N/kg 以上</td><td>20%以上</td></tr>
+    </tbody></table><div class="note" style="margin-top:8px">単位換算：1 kgf = 9.80665 N、1 daN = 10 N。kgfモードでは基準を 50% / 10% / 8% / 20% で表示します。</div>
+  </section>
+</main>
+<div class="footerbar noPrint"><div><button onclick="calc()">判定する</button><button class="secondary" onclick="window.print()">印刷 / PDF</button></div></div>
+<script>
+const $=id=>document.getElementById(id);
+const ids=['unit','mode','frontAxle','rearAxle','driverAdd','wet','fr','fl','rr','rl','park','frontLock','rearLock','parkLock','propLock','memo'];
+ids.forEach(id=>$(id).addEventListener('input',calc));
+
+function raw(id){return String($(id).value).trim()}
+function num(id){const v=parseFloat(String($(id).value).replace(',','.'));return isNaN(v)?0:v}
+function currentUnit(){return $('unit').value}
+function isKgf(){return currentUnit()==='kgf'}
+function unitLabel(){const u=currentUnit(); return u==='kgf'?'kgf':(u==='daN'?'daN':'N')}
+function forceN(v){const u=currentUnit(); if(u==='kgf')return v*9.80665; if(u==='daN')return v*10; return v}
+function fromN(v){const u=currentUnit(); if(u==='kgf')return v/9.80665; if(u==='daN')return v/10; return v}
+
+function floor2(v){return Math.floor((v + 1e-10) * 100) / 100}
+function ceil2(v){return Math.ceil((v - 1e-10) * 100) / 100}
+function show1(v){return isFinite(v)?(Math.floor((v + 1e-10) * 10) / 10).toFixed(1):'0.0'}
+function show1Up(v){return isFinite(v)?(Math.ceil((v - 1e-10) * 10) / 10).toFixed(1):'0.0'}
+function f0(v){return isFinite(v)?Math.round(v).toLocaleString():'0'}
+
+function criterionText(nPerKg, percent){
+  if(isKgf())return `${percent}%`;
+  return `${nPerKg.toFixed(2)} N/kg`;
+}
+function valueText(nPerKg, percentVal){
+  if(isKgf())return `${show1(percentVal)}%`;
+  return `${show1(nPerKg)} N/kg`;
+}
+function pass(v,limit,ge=true){return ge?v>=limit:v<=limit}
+function badge(ok,txt){return `<span class="pill ${ok?'ok':'ng'}">${txt}</span>`}
+function badgeMaybe(ok){return ok===null?'<span class="pill warnp">保留</span>':badge(ok,ok?'OK':'NG')}
+
+function calc(){
+  document.querySelectorAll('.ulabel').forEach(e=>e.textContent=unitLabel());
+
+  const add=num('driverAdd'), fa=num('frontAxle'), ra=num('rearAxle');
+  const fkg=fa+add, rkg=ra, totalKg=fkg+rkg;
+
+  const fr=forceN(num('fr')), fl=forceN(num('fl')), rr=forceN(num('rr')), rl=forceN(num('rl')), parkForce=forceN(num('park'));
+  const frontSum=fr+fl, rearSum=rr+rl, total=frontSum+rearSum, park=parkForce;
+  const fdiff=Math.abs(fr-fl), rdiff=Math.abs(rr-rl);
+
+  let mainLimit=($('wet').value==='1'||$('mode').value==='lowSpeed')?3.92:4.90;
+  const rearLimit=0.98, diffLimit=0.78, parkLimit=1.96;
+
+  // 生値 N/kg
+  const mainRaw=totalKg?total/totalKg:0;
+  const rearRaw=rkg?rearSum/rkg:0;
+  const fdiffRaw=fkg?fdiff/fkg:0;
+  const rdiffRaw=rkg?rdiff/rkg:0;
+  const parkRaw=totalKg?park/totalKg:0;
+
+  // 生値 %
+  const mainPctRaw=mainRaw/9.80665*100;
+  const rearPctRaw=rearRaw/9.80665*100;
+  const fdiffPctRaw=fdiffRaw/9.80665*100;
+  const rdiffPctRaw=rdiffRaw/9.80665*100;
+  const parkPctRaw=parkRaw/9.80665*100;
+
+  // 判定用丸め
+  // 主制動・後輪制動・駐車：小数点第2位切り下げ（駐車ブレーキ含む）
+  // 左右差：小数点第2位切り上げ
+  const mainVal=floor2(mainRaw);
+  const rearVal=floor2(rearRaw);
+  const parkVal=floor2(parkRaw);
+  const fdiffVal=ceil2(fdiffRaw);
+  const rdiffVal=ceil2(rdiffRaw);
+
+  const mainPct=floor2(mainPctRaw);
+  const rearPct=floor2(rearPctRaw);
+  const parkPct=floor2(parkPctRaw);
+  const fdiffPct=ceil2(fdiffPctRaw);
+  const rdiffPct=ceil2(rdiffPctRaw);
+
+  const mainLimitPct=($('wet').value==='1'||$('mode').value==='lowSpeed')?40:50;
+  const rearLimitPct=10;
+  const diffLimitPct=8;
+  const parkLimitPct=20;
+
+  // kgfモードは%基準、N/daNモードはN/kg基準で判定
+  let mainOK, rearOK, fdOK, rdOK, parkOK;
+  if(isKgf()){
+    mainOK=pass(mainPct,mainLimitPct);
+    rearOK=$('mode').value==='trailer'?true:pass(rearPct,rearLimitPct);
+    fdOK=pass(fdiffPct,diffLimitPct,false);
+    rdOK=pass(rdiffPct,diffLimitPct,false);
+  }else{
+    mainOK=pass(mainVal,mainLimit);
+    rearOK=$('mode').value==='trailer'?true:pass(rearVal,rearLimit);
+    fdOK=pass(fdiffVal,diffLimit,false);
+    rdOK=pass(rdiffVal,diffLimit,false);
+  }
+
+  mainOK = mainOK || $('frontLock').checked || $('rearLock').checked;
+  rearOK = rearOK || $('rearLock').checked;
+  fdOK = fdOK || $('frontLock').checked;
+  rdOK = rdOK || $('rearLock').checked;
+
+  const parkMeasured=raw('park')!=='';
+  if(!parkMeasured&&!$('parkLock').checked&&!$('propLock').checked){
+    parkOK=null;
+  }else if(isKgf()){
+    parkOK=pass(parkPct,parkLimitPct)||$('parkLock').checked||$('propLock').checked;
+  }else{
+    parkOK=pass(parkVal,parkLimit)||$('parkLock').checked||$('propLock').checked;
+  }
+
+  const all=mainOK&&rearOK&&fdOK&&rdOK&&(parkOK!==false);
+
+  let notes=[];
+  if($('wet').value==='1')notes.push('W：ローラ濡れ等により主制動力をkgfは40%、N/daNは3.92N/kgで判定');
+  if($('frontLock').checked)notes.push('前軸 全車輪ロック');
+  if($('rearLock').checked)notes.push('後軸 全車輪ロック');
+  if($('parkLock').checked)notes.push('駐車 全車輪ロック');
+  if($('propLock').checked)notes.push('推進軸ロック');
+  if($('memo').value)notes.push($('memo').value);
+
+  $('summary').innerHTML=`<div class="big">総合判定 ${all?(parkOK===null?'<span class="pill warnp">駐車保留</span>':badge(true,'適合')):badge(false,'要確認')}</div>
+ <p>検査時重量：<b class="mono">${f0(totalKg)} kg</b>（前軸 ${f0(fkg)}kg / 後軸 ${f0(rkg)}kg）</p>
+ <p>主制動力 ${badge(mainOK,mainOK?'OK':'NG')} <b class="mono">${valueText(mainVal,mainPct)}</b> / 基準 ${criterionText(mainLimit,mainLimitPct)}以上</p>
+ <p>後輪制動力 ${badge(rearOK,rearOK?'OK':'NG')} <b class="mono">${valueText(rearVal,rearPct)}</b> / 基準 ${criterionText(0.98,10)}以上</p>
+ <p>前左右差 ${badge(fdOK,fdOK?'OK':'NG')} <b class="mono">${isKgf()?show1Up(fdiffPct)+'%':show1Up(fdiffVal)+' N/kg'}</b>　後左右差 ${badge(rdOK,rdOK?'OK':'NG')} <b class="mono">${isKgf()?show1Up(rdiffPct)+'%':show1Up(rdiffVal)+' N/kg'}</b> / 基準 ${criterionText(0.78,8)}以下</p>
+ <p>駐車 ${badgeMaybe(parkOK)} <b class="mono">${parkOK===null?'未入力':valueText(parkVal,parkPct)}</b> / 基準 ${criterionText(1.96,20)}以上</p>
+ ${notes.length?`<p class="note">備考：${notes.join(' / ')}</p>`:''}`;
+
+  const u=unitLabel(), metricHead=isKgf()?'比率':'N/kg';
+  const frontDiffRate=isKgf()?`${show1Up(fdiffPct)}%`:`${show1Up(fdiffVal)}`;
+  const rearDiffRate=isKgf()?`${show1Up(rdiffPct)}%`:`${show1Up(rdiffVal)}`;
+  const mainRate=isKgf()?`${show1(mainPct)}%`:`${show1(mainVal)}`;
+  const rearRate=isKgf()?`${show1(rearPct)}%`:`${show1(rearVal)}`;
+  const parkRate=isKgf()?`${show1(parkPct)}%`:`${show1(parkVal)}`;
+
+  $('tablewrap').innerHTML=`<table><thead><tr><th>項目</th><th>右 ${u}</th><th>左 ${u}</th><th>差/合計 ${u}</th><th>${metricHead}</th><th>判定</th></tr></thead><tbody>
+ <tr><td>前軸左右差</td><td>${f0(fromN(fr))}</td><td>${f0(fromN(fl))}</td><td>差 ${f0(fromN(fdiff))}</td><td>${frontDiffRate}</td><td>${badge(fdOK,fdOK?'OK':'NG')}</td></tr>
+ <tr><td>後軸左右差</td><td>${f0(fromN(rr))}</td><td>${f0(fromN(rl))}</td><td>差 ${f0(fromN(rdiff))}</td><td>${rearDiffRate}</td><td>${badge(rdOK,rdOK?'OK':'NG')}</td></tr>
+ <tr><td>後輪制動力合計</td><td colspan="3" style="text-align:left;padding-left:12px">${f0(fromN(rearSum))}</td><td>${rearRate}</td><td>${badge(rearOK,rearOK?'OK':'NG')}</td></tr>
+ <tr><td>制動力合計</td><td colspan="3" style="text-align:left;padding-left:12px">${f0(fromN(total))}</td><td>${mainRate}</td><td>${badge(mainOK,mainOK?'OK':'NG')}</td></tr>
+ <tr><td>駐車ブレーキ</td><td colspan="3" style="text-align:left;padding-left:12px">${parkMeasured?f0(fromN(park)):'未入力'}</td><td>${parkMeasured?parkRate:'保留'}</td><td>${badgeMaybe(parkOK)}</td></tr>
+ </tbody></table>
+ <div class="note" style="margin-top:8px">kgfは%基準、N/daNはN/kg基準で判定。左右差の行は「左右の和」を省略。</div>`;
+}
+
+function sample(){
+  $('unit').value='kgf';
+  $('frontAxle').value=730;
+  $('rearAxle').value=600;
+  $('fr').value=300;
+  $('fl').value=300;
+  $('rr').value=250;
+  $('rl').value=200;
+  $('park').value=280;
+  calc();
+}
+function clearAll(){
+  ids.forEach(id=>{
+    const e=$(id);
+    if(e.type==='checkbox')e.checked=false;
+    else if(['unit','mode','driverAdd','wet'].includes(id)){}
+    else e.value='';
+  });
+  calc();
+}
+calc();
+</script>
+</body>
+</html>
